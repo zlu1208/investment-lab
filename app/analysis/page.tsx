@@ -2,14 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/Card";
-
-type Holding = {
-  symbol: string;
-  shares: number;
-  averageCost: number;
-  currentPrice: number;
-  type: "Stock" | "ETF";
-};
+import { decodePortfolioFromUrl, STORAGE_KEY, type Holding } from "@/app/lib/portfolio";
 
 type Quote = {
   symbol: string;
@@ -25,7 +18,6 @@ type LiveHolding = Holding & {
   changePercent: number;
 };
 
-const STORAGE_KEY = "investment-lab-portfolio";
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export default function Analysis() {
@@ -35,11 +27,17 @@ export default function Analysis() {
 
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Holding[];
-        if (Array.isArray(parsed)) {
-          setHoldings(parsed);
+      const params = new URLSearchParams(window.location.search);
+      const shared = decodePortfolioFromUrl(params.get("portfolio"));
+      if (shared) {
+        setHoldings(shared);
+      } else {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Holding[];
+          if (Array.isArray(parsed)) {
+            setHoldings(parsed);
+          }
         }
       }
     } catch {

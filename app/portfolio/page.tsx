@@ -2,45 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/Card";
-
-type Holding = {
-  symbol: string;
-  shares: number;
-  averageCost: number;
-  currentPrice: number;
-  type: "Stock" | "ETF";
-};
-
-const STORAGE_KEY = "investment-lab-portfolio";
-
-const defaultHoldings: Holding[] = [
-  { symbol: "AAPL", shares: 25, averageCost: 175.0, currentPrice: 195.5, type: "Stock" },
-  { symbol: "MSFT", shares: 15, averageCost: 340.0, currentPrice: 380.2, type: "Stock" },
-  { symbol: "VTI", shares: 12, averageCost: 248.0, currentPrice: 266.5, type: "ETF" },
-  { symbol: "VOO", shares: 18, averageCost: 420.0, currentPrice: 447.8, type: "ETF" },
-  { symbol: "NVDA", shares: 8, averageCost: 800.0, currentPrice: 875.5, type: "Stock" },
-];
-
-const emptyForm = {
-  symbol: "",
-  shares: 1,
-  averageCost: 0,
-  currentPrice: 0,
-  type: "Stock" as Holding["type"],
-};
+import { decodePortfolioFromUrl, defaultHoldings, emptyForm, encodePortfolioForUrl, STORAGE_KEY, type Holding } from "@/app/lib/portfolio";
 
 export default function Portfolio() {
   const [holdings, setHoldings] = useState<Holding[]>(defaultHoldings);
   const [form, setForm] = useState(emptyForm);
   const [hydrated, setHydrated] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Holding[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setHoldings(parsed);
+      const params = new URLSearchParams(window.location.search);
+      const shared = decodePortfolioFromUrl(params.get("portfolio"));
+      if (shared) {
+        setHoldings(shared);
+      } else {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Holding[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setHoldings(parsed);
+          }
         }
       }
     } catch {
@@ -53,6 +35,9 @@ export default function Portfolio() {
   useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
+    const url = new URL(window.location.href);
+    url.searchParams.set("portfolio", encodePortfolioForUrl(holdings));
+    setShareUrl(url.toString());
   }, [holdings, hydrated]);
 
   const metrics = useMemo(() => {
@@ -89,6 +74,16 @@ export default function Portfolio() {
 
   const resetHoldings = () => {
     setHoldings(defaultHoldings);
+  };
+
+  const copyShareLink = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("Portfolio link copied. Share it to open the same holdings on another device.");
+    } catch {
+      window.prompt("Copy this portfolio link:", shareUrl);
+    }
   };
 
   return (
@@ -204,6 +199,12 @@ export default function Portfolio() {
             className="px-6 py-2 bg-zinc-200 dark:bg-zinc-800 text-black dark:text-white rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-700 transition font-medium"
           >
             Reset Sample Portfolio
+          </button>
+          <button
+            onClick={copyShareLink}
+            className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
+          >
+            Copy Share Link
           </button>
         </div>
       </Card>
