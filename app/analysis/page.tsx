@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/Card";
-import { decodePortfolioFromUrl, STORAGE_KEY, type Holding } from "@/app/lib/portfolio";
+import { decodePortfolioFromUrl, defaultHoldings, isLegacyPortfolio, STORAGE_KEY, type Holding } from "@/app/lib/portfolio";
 
 type Quote = {
   symbol: string;
@@ -35,9 +35,13 @@ export default function Analysis() {
         const stored = window.localStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored) as Holding[];
-          if (Array.isArray(parsed)) {
-            setHoldings(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setHoldings(isLegacyPortfolio(parsed) ? defaultHoldings : parsed);
+          } else {
+            setHoldings(defaultHoldings);
           }
+        } else {
+          setHoldings(defaultHoldings);
         }
       }
     } catch {
