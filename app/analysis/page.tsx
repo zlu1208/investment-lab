@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/Card";
-import { decodePortfolioFromUrl, defaultHoldings, isLegacyPortfolio, STORAGE_KEY, type Holding } from "@/app/lib/portfolio";
+import { decodePortfolioFromUrl, defaultHoldings, emptyForm, encodePortfolioForUrl, isLegacyPortfolio, STORAGE_KEY, type Holding } from "@/app/lib/portfolio";
 
 type Quote = {
   symbol: string;
@@ -24,6 +24,7 @@ export default function Analysis() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [loading, setLoading] = useState(true);
+  const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
     try {
@@ -48,6 +49,16 @@ export default function Analysis() {
       setHoldings([]);
     }
   }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (holdings.length) {
+      url.searchParams.set("portfolio", encodePortfolioForUrl(holdings));
+    } else {
+      url.searchParams.delete("portfolio");
+    }
+    setShareUrl(url.toString());
+  }, [holdings]);
 
   useEffect(() => {
     if (!holdings.length) {
@@ -167,13 +178,45 @@ export default function Analysis() {
   const stockPct = analysis.totalValue === 0 ? 0 : (analysis.stockWeight / analysis.totalValue) * 100;
   const etfPct = analysis.totalValue === 0 ? 0 : (analysis.etfWeight / analysis.totalValue) * 100;
 
+  const copyShareLink = async () => {
+    if (!shareUrl) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Investment Lab portfolio",
+          text: "Open this portfolio on another device",
+          url: shareUrl,
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("Portfolio link copied. Share it to open the same holdings on another device.");
+        return;
+      }
+    } catch {
+      // Ignore share cancellation and fall back to prompt.
+    }
+
+    window.prompt("Copy this portfolio link:", shareUrl);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-black dark:text-white mb-2">Investment Dashboard</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Live watchlist, allocation, and risk summary for the holdings saved in your portfolio.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-black dark:text-white mb-2">Investment Dashboard</h1>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Live watchlist, allocation, and risk summary for the holdings saved in your portfolio.
+          </p>
+        </div>
+        <button
+          onClick={copyShareLink}
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
+        >
+          Copy Share Link
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

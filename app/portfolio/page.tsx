@@ -83,11 +83,25 @@ export default function Portfolio() {
   const copyShareLink = async () => {
     if (!shareUrl) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      alert("Portfolio link copied. Share it to open the same holdings on another device.");
+      if (navigator.share) {
+        await navigator.share({
+          title: "Investment Lab portfolio",
+          text: "Open this portfolio on another device",
+          url: shareUrl,
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("Portfolio link copied. Share it to open the same holdings on another device.");
+        return;
+      }
     } catch {
-      window.prompt("Copy this portfolio link:", shareUrl);
+      // Ignore share cancellation and fall back to prompt.
     }
+
+    window.prompt("Copy this portfolio link:", shareUrl);
   };
 
   return (
